@@ -1,0 +1,505 @@
+{
+  "info": {
+    "name": "Reqres API Automation",
+    "description": "Q3-Q8 API assessment. Run with: npm run api:test",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// reqres.in requires an API key. Added to every request unless the request sets its own x-api-key.",
+          "if (!pm.request.headers.has('x-api-key')) {",
+          "    pm.request.headers.add({ key: 'x-api-key', value: pm.variables.get('apiKey') });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Q3 - Login with registered credentials (capture authToken)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Content-Type is JSON\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+              "const json = pm.response.json();",
+              "pm.test(\"Response contains a non-empty token\", () => {",
+              "    pm.expect(json).to.have.property(\"token\");",
+              "    pm.expect(json.token).to.be.a(\"string\").and.not.empty;",
+              "});",
+              "pm.collectionVariables.set(\"authToken\", json.token);",
+              "pm.test(\"authToken stored in collection variable\", () => pm.expect(pm.collectionVariables.get(\"authToken\")).to.eql(json.token));",
+              "",
+              "pm.test(\"Response time is under 5000 ms\", () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Q4 - GET user by userId (verify name & email)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+              "const user = pm.response.json().data;",
+              "pm.test(\"User id matches requested userId\", () => pm.expect(String(user.id)).to.eql(String(pm.variables.get(\"userId\"))));",
+              "pm.test(\"Name matches expected\", () => {",
+              "    pm.expect(user.first_name).to.eql(pm.variables.get(\"expectedFirstName\"));",
+              "    pm.expect(user.last_name).to.eql(pm.variables.get(\"expectedLastName\"));",
+              "});",
+              "pm.test(\"Email matches expected\", () => pm.expect(user.email).to.eql(pm.variables.get(\"expectedEmail\")));",
+              "pm.collectionVariables.set(\"userFullName\", user.first_name + \" \" + user.last_name);",
+              "",
+              "pm.test(\"Response time is under 5000 ms\", () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Q5 - PUT updated profile (verify updatedAt)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test(\"Name and job are updated in the response\", () => {",
+              "    pm.expect(json.name).to.eql(pm.variables.get(\"updatedName\"));",
+              "    pm.expect(json.job).to.eql(pm.variables.get(\"updatedJob\"));",
+              "});",
+              "pm.test(\"updatedAt exists and is a valid ISO timestamp\", () => {",
+              "    pm.expect(json).to.have.property(\"updatedAt\");",
+              "    pm.expect(Number.isNaN(Date.parse(json.updatedAt))).to.be.false;",
+              "});",
+              "pm.test(\"updatedAt is recent (within 10 minutes of now)\", () => {",
+              "    const diff = Math.abs(Date.now() - Date.parse(json.updatedAt));",
+              "    pm.expect(diff).to.be.below(10 * 60 * 1000);",
+              "});",
+              "pm.collectionVariables.set(\"putUpdatedAt\", json.updatedAt);",
+              "",
+              "pm.test(\"Response time is under 5000 ms\", () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{updatedName}}\",\n  \"job\": \"{{updatedJob}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Q6 - PATCH single field (verify only that field changed)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test(\"Patched field 'job' has the new value\", () => {",
+              "    pm.expect(json.job).to.eql(pm.variables.get(\"patchedJob\"));",
+              "    pm.expect(json.job).to.not.eql(pm.variables.get(\"updatedJob\"));",
+              "});",
+              "pm.test(\"Only the patched field (plus updatedAt) is returned - 'name' is untouched\", () => {",
+              "    const fields = Object.keys(json).filter(k => ![\"_meta\", \"support\"].includes(k)).sort();",
+              "    pm.expect(fields).to.eql([\"job\", \"updatedAt\"]);",
+              "    pm.expect(json).to.not.have.property(\"name\");",
+              "});",
+              "pm.test(\"updatedAt is a valid timestamp\", () => pm.expect(Number.isNaN(Date.parse(json.updatedAt))).to.be.false);",
+              "",
+              "pm.test(\"Response time is under 5000 ms\", () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"job\": \"{{patchedJob}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Q8 - Bad requests (assert 4xx)",
+      "item": [
+        {
+          "name": "Q8.1 - Login with stored email but missing password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 4xx (client error)\", () => pm.expect(pm.response.code).to.be.within(400, 499));",
+                  "pm.test(\"Status code is 400\", () => pm.expect(pm.response.code).to.be.oneOf([400]));",
+                  "pm.test(\"Error message mentions 'missing password'\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property(\"error\");",
+                  "    pm.expect(json.error.toLowerCase()).to.include(\"missing password\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Q8.2 - Login with stored password but missing email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 4xx (client error)\", () => pm.expect(pm.response.code).to.be.within(400, 499));",
+                  "pm.test(\"Status code is 400\", () => pm.expect(pm.response.code).to.be.oneOf([400]));",
+                  "pm.test(\"Error message mentions 'missing email'\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property(\"error\");",
+                  "    pm.expect(json.error.toLowerCase()).to.include(\"missing email\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Q8.3 - Login with unregistered email + stored password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 4xx (client error)\", () => pm.expect(pm.response.code).to.be.within(400, 499));",
+                  "pm.test(\"Status code is 400\", () => pm.expect(pm.response.code).to.be.oneOf([400]));",
+                  "pm.test(\"Error message mentions 'user not found'\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property(\"error\");",
+                  "    pm.expect(json.error.toLowerCase()).to.include(\"user not found\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"unknown.user.{{$timestamp}}@example.com\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Q8.4 - Register with stored email but missing password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 4xx (client error)\", () => pm.expect(pm.response.code).to.be.within(400, 499));",
+                  "pm.test(\"Status code is 400\", () => pm.expect(pm.response.code).to.be.oneOf([400]));",
+                  "pm.test(\"Error message mentions 'missing password'\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property(\"error\");",
+                  "    pm.expect(json.error.toLowerCase()).to.include(\"missing password\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Q8.5 - GET non-existent user id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 4xx (client error)\", () => pm.expect(pm.response.code).to.be.within(400, 499));",
+                  "pm.test(\"Status code is 404\", () => pm.expect(pm.response.code).to.be.oneOf([404]));",
+                  "pm.test(\"Body is an empty object\", () => pm.expect(pm.response.json()).to.eql({}));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{invalidUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{invalidUserId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Q8.6 - Register with unregistered email + stored password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 4xx (client error)\", () => pm.expect(pm.response.code).to.be.within(400, 499));",
+                  "pm.test(\"Status code is 400\", () => pm.expect(pm.response.code).to.be.oneOf([400]));",
+                  "pm.test(\"Error message present\", () => pm.expect(pm.response.json().error).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"unknown.user.{{$timestamp}}@example.com\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "authToken",
+      "value": ""
+    },
+    {
+      "key": "putUpdatedAt",
+      "value": ""
+    },
+    {
+      "key": "userFullName",
+      "value": ""
+    }
+  ]
+}
